@@ -2,10 +2,12 @@ import { PrismaClient } from '@prisma/client'
 import * as pg from 'pg'
 import envp from 'envp'
 
+// Load the environment
 const env = envp({
   DATABASE_URL: String
 })
 
+// Initialize Prisma
 const prisma = new PrismaClient({
   datasources: {
     db: {
@@ -15,6 +17,7 @@ const prisma = new PrismaClient({
   // log: ["query"],
 })
 
+// Initialize a Postgres Pool
 const pgPool = new pg.Pool({
   connectionString: env.DATABASE_URL
 })
@@ -22,6 +25,7 @@ const pgPool = new pg.Pool({
 // Prisma under test
 async function prismaUpsert(prisma: PrismaClient) {
   const promises: any[] = []
+  // Try upserting the same ID twice 10 times concurrently
   for (let i = 0; i < 10; i++) {
     promises.push(prisma.test.upsert({
       where: { testId: `prisma-${i}` },
@@ -40,6 +44,7 @@ async function prismaUpsert(prisma: PrismaClient) {
 // PostgreSQL under test
 async function pgUpsert(client: pg.PoolClient) {
   const promises: any[] = []
+  // Try upserting the same ID twice 10 times concurrently
   for (let i = 0; i < 10; i++) {
     promises.push(client.query(`
       insert into "Test" ("testId") values ($1)
@@ -62,7 +67,7 @@ async function main() {
   pgClient.release()
   console.log('truncated')
 
-  // Postgres
+  // Run with pg
   console.log("pg: connecting")
   pgClient = await pgPool.connect()
   try {
@@ -78,7 +83,7 @@ async function main() {
   await pgPool.end()
   console.log("pg: disconnected")
 
-  // Prisma
+  // Run with Prisma
   try {
     console.log("prisma: connecting")
     await prisma.$connect()
